@@ -229,7 +229,7 @@
 
   <div class="grid" id="grid" aria-label="Bingo grid"></div>
 
-  <!-- Name gate (player must enter their own name first) -->
+  <!-- Name gate -->
   <div id="nameGate">
     <div class="gateCard">
       <div class="gateTitle">Enter your name to start</div>
@@ -241,7 +241,7 @@
     </div>
   </div>
 
-  <!-- Full-screen bingo overlay -->
+  <!-- Bingo overlay -->
   <div id="bingoOverlay">
     <div class="overlayCard">
       <div class="overlayTitle">BINGO!</div>
@@ -259,7 +259,7 @@
 ======================== */
 const LOCK_MS = 60 * 60 * 1000; // 1 hour
 
-// Storage keys (v3 to avoid clashes with your earlier versions)
+// Storage keys
 const BOARD_KEY  = "humanBingo_board_v3";
 const STATE_KEY  = "humanBingo_state_v3";
 const PLAYER_KEY = "humanBingo_player_v3";
@@ -267,7 +267,6 @@ const BINGO_KEY  = "humanBingo_bingo_v3";
 
 /* ========================
    BINGO ITEMS (25)
-   Use exactly 25 for a 5x5 board.
 ======================== */
 const items = [
   "Has worked in more than one industry",
@@ -336,7 +335,6 @@ function getOrCreateBoard(){
     }
   }
 
-  // Create a new locked board
   const fresh = [...items];
   shuffle(fresh);
   const board = fresh.slice(0,25);
@@ -345,7 +343,6 @@ function getOrCreateBoard(){
   const payload = { board, expires };
   localStorage.setItem(BOARD_KEY, JSON.stringify(payload));
 
-  // Reset state + bingo when board changes
   localStorage.removeItem(STATE_KEY);
   localStorage.removeItem(BINGO_KEY);
 
@@ -402,7 +399,7 @@ function enforceNameGate(){
 }
 
 /* ========================
-   TILE STATE (marks + names)
+   TILE STATE
 ======================== */
 function defaultState(){
   return Array.from({length:25}, () => ({ marked:false, name:"" }));
@@ -436,28 +433,21 @@ function renderTile(div, label, tileState){
 
 /* ========================
    BINGO DETECTION
-   Only counts tiles that have a non-empty name.
 ======================== */
 function isMarkedValid(tileState){
   return tileState.marked && typeof tileState.name === "string" && tileState.name.trim().length >= 2;
 }
 
 function getWinningLines(){
-  // indices for a 5x5 grid
   const lines = [];
-
-  // rows
   for(let r=0; r<5; r++){
     lines.push([0,1,2,3,4].map(c => r*5 + c));
   }
-  // cols
   for(let c=0; c<5; c++){
     lines.push([0,1,2,3,4].map(r => r*5 + c));
   }
-  // diagonals
   lines.push([0,6,12,18,24]);
   lines.push([4,8,12,16,20]);
-
   return lines;
 }
 
@@ -465,14 +455,14 @@ function checkBingo(state){
   const lines = getWinningLines();
   for(const line of lines){
     if(line.every(i => isMarkedValid(state[i]))){
-      return line; // return winning line indices
+      return line;
     }
   }
   return null;
 }
 
 /* ========================
-   BINGO OVERLAY + BANNER
+   BINGO UI
 ======================== */
 function hasBingoRecorded(){
   const data = safeJsonParse(localStorage.getItem(BINGO_KEY));
@@ -492,24 +482,21 @@ function showBingoUI(){
   const banner = document.getElementById("banner");
   const player = getPlayerName() || "Player";
 
-  // Full screen overlay
   document.getElementById("overlaySub").textContent = `${player} completed a BINGO.`;
   show(overlay);
 
-  // After a moment, also set banner (stays at top)
   banner.textContent = `BINGO achieved — ${player}`;
   banner.style.display = "block";
 }
 
 /* ========================
-   RENDER APP
+   APP
 ======================== */
 function initApp(){
   updatePlayerLine();
   enforceNameGate();
 
-  // Build board + render grid
-  const { board, expires } = getOrCreateBoard();
+  const { board } = getOrCreateBoard();
   const state = loadState();
 
   const grid = document.getElementById("grid");
@@ -521,7 +508,6 @@ function initApp(){
     renderTile(div, label, state[idx]);
 
     div.onclick = () => {
-      // Must have player name first
       const player = getPlayerName();
       if(!player){
         enforceNameGate();
@@ -539,8 +525,23 @@ function initApp(){
       // Require name entry to mark
       const entered = prompt("Enter the person's name to mark this tile:");
       if(!entered) return;
+
       const cleaned = entered.trim();
       if(cleaned.length < 2) return;
+
+      // Block duplicate names (case-insensitive)
+      const normalized = cleaned.toLowerCase();
+      const alreadyUsed = state.some((t, i) => {
+        if(i === idx) return false;
+        if(!t || !t.marked) return false;
+        const n = (t.name || "").trim().toLowerCase();
+        return n === normalized;
+      });
+
+      if(alreadyUsed){
+        alert("That name is already used on your board. Please enter a different person’s name.");
+        return;
+      }
 
       state[idx] = { marked:true, name: cleaned };
       saveState(state);
@@ -559,7 +560,7 @@ function initApp(){
     grid.appendChild(div);
   });
 
-  // If bingo already achieved earlier, show banner only (no overlay)
+  // If bingo already achieved earlier, show banner only
   const banner = document.getElementById("banner");
   if(hasBingoRecorded()){
     const player = getPlayerName() || "Player";
@@ -569,24 +570,26 @@ function initApp(){
     banner.style.display = "none";
   }
 
-  // Buttons
+  // Reset button with confirmation
   document.getElementById("resetBtn").onclick = () => {
-    // Keep board locked, just clear marks/names + bingo state
+    const confirmReset = confirm(
+      "Reset your board?\n\nThis will remove all marked tiles and names.\nYour card layout will stay the same."
+    );
+    if(!confirmReset) return;
+
     localStorage.removeItem(STATE_KEY);
     localStorage.removeItem(BINGO_KEY);
     initApp();
   };
 
+  // New card only after expiry
   document.getElementById("newAfterExpiryBtn").onclick = () => {
-    // Only allow a new board after expiry
     const stored = safeJsonParse(localStorage.getItem(BOARD_KEY));
     const now = nowMs();
     if(stored && typeof stored.expires === "number" && now < stored.expires){
       alert("Not yet. This card is still locked. Wait until the timer ends.");
       return;
     }
-
-    // Remove board so it regenerates
     localStorage.removeItem(BOARD_KEY);
     localStorage.removeItem(STATE_KEY);
     localStorage.removeItem(BINGO_KEY);
@@ -596,10 +599,8 @@ function initApp(){
   // Overlay close
   document.getElementById("overlayCloseBtn").onclick = () => {
     hide(document.getElementById("bingoOverlay"));
-    // banner remains visible at the top
   };
 
-  // Also allow clicking outside the overlay card to close
   document.getElementById("bingoOverlay").onclick = (e) => {
     if(e.target.id === "bingoOverlay"){
       hide(document.getElementById("bingoOverlay"));
@@ -618,7 +619,6 @@ function initApp(){
     hide(document.getElementById("nameGate"));
   };
 
-  // Enter key on name input
   document.getElementById("playerNameInput").addEventListener("keydown", (e) => {
     if(e.key === "Enter"){
       document.getElementById("startBtn").click();
@@ -626,7 +626,6 @@ function initApp(){
   });
 }
 
-// Run
 initApp();
 </script>
 
