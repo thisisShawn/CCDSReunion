@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Human Bingo</title>
+
+<style>
+body{
+font-family: Arial;
+text-align:center;
+background:#f2f2f2;
+}
+
+.grid{
+display:grid;
+grid-template-columns:repeat(5,1fr);
+gap:8px;
+max-width:500px;
+margin:20px auto;
+}
+
+.tile{
+border:2px solid black;
+padding:15px;
+background:white;
+cursor:pointer;
+}
+
+.tile.active{
+background:green;
+color:white;
+}
+</style>
+</head>
+
+<body>
+
+<h1>Human Bingo</h1>
+<p>Tap a box when you find someone who matches it</p>
+
+<div class="grid" id="grid"></div>
+
+<script>
+
+const items = [
+"Has worked in more than one industry",
+"Has led a team",
+"Speaks more than one language",
+"Recently learned a new skill",
+"Has changed careers",
+"Enjoys public speaking",
+"Works remotely",
+"Has attended more than 3 conferences this year",
+"Is hiring",
+"Is looking for new opportunities",
+"Uses AI in their work",
+"Started a side project",
+"Has deployed something to production",
+"Contributes to open source",
+"Has built something using AI",
+"Has worked in a startup",
+"Uses more than 3 programming languages",
+"Has broken production before",
+"Has a GitHub project",
+"Has spoken at a tech meetup",
+"Works with cloud platforms",
+"Uses Linux daily",
+"Has built a mobile app",
+"Has worked overseas",
+"Drinks more than 3 cups of coffee a day"
+];
+
+function shuffle(a){
+for(let i=a.length-1;i>0;i--){
+const j=Math.floor(Math.random()*(i+1));
+[a[i],a[j]]=[a[j],a[i]];
+}
+}
+
+shuffle(items);
+
+const grid=document.getElementById("grid");
+
+items.forEach(text=>{
+const div=document.createElement("div");
+div.className="tile";
+div.innerText=text;
+
+div.onclick=()=>{
+div.classList.toggle("active");
+};
+
+grid.appendChild(div);
+});
+
+</script>
+
+</body>
+</html>
