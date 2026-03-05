@@ -48,6 +48,7 @@
       border: 2px solid #000;
       background: #fff;
       font-weight: bold;
+      white-space: pre-line;
     }
 
     #controls{
@@ -135,9 +136,10 @@
     }
 
     .overlaySub{
-      margin: 0 0 14px;
+      margin: 0 0 10px;
       font-size: 14px;
-      opacity: 0.85;
+      opacity: 0.9;
+      white-space: pre-line;
     }
 
     .overlayMini{
@@ -259,11 +261,11 @@
 ======================== */
 const LOCK_MS = 60 * 60 * 1000; // 1 hour
 
-// Storage keys
-const BOARD_KEY  = "humanBingo_board_v3";
-const STATE_KEY  = "humanBingo_state_v3";
-const PLAYER_KEY = "humanBingo_player_v3";
-const BINGO_KEY  = "humanBingo_bingo_v3";
+// Storage keys (v4)
+const BOARD_KEY  = "humanBingo_board_v4";
+const STATE_KEY  = "humanBingo_state_v4";
+const PLAYER_KEY = "humanBingo_player_v4";
+const BINGO_KEY  = "humanBingo_bingo_v4";
 
 /* ========================
    BINGO ITEMS (25)
@@ -323,6 +325,7 @@ function hide(el){ el.style.display = "none"; }
 
 /* ========================
    BOARD + LOCK
+   Also stores startedAt for "time to bingo"
 ======================== */
 function getOrCreateBoard(){
   const now = nowMs();
@@ -340,7 +343,7 @@ function getOrCreateBoard(){
   const board = fresh.slice(0,25);
   const expires = now + LOCK_MS;
 
-  const payload = { board, expires };
+  const payload = { board, expires, startedAt: now };
   localStorage.setItem(BOARD_KEY, JSON.stringify(payload));
 
   localStorage.removeItem(STATE_KEY);
@@ -348,6 +351,12 @@ function getOrCreateBoard(){
 
   startTimer(expires);
   return payload;
+}
+
+function getBoardMeta(){
+  const stored = safeJsonParse(localStorage.getItem(BOARD_KEY));
+  if(stored && typeof stored.startedAt === "number") return stored;
+  return null;
 }
 
 function startTimer(expires){
@@ -462,19 +471,38 @@ function checkBingo(state){
 }
 
 /* ========================
-   BINGO UI
+   BINGO UI + TIME TO BINGO
 ======================== */
 function hasBingoRecorded(){
   const data = safeJsonParse(localStorage.getItem(BINGO_KEY));
   return !!(data && data.won === true);
 }
 
+function getBingoRecord(){
+  const data = safeJsonParse(localStorage.getItem(BINGO_KEY));
+  return (data && data.won === true) ? data : null;
+}
+
 function recordBingo(line){
+  const now = nowMs();
+  const meta = getBoardMeta();
+  const startedAt = meta && typeof meta.startedAt === "number" ? meta.startedAt : now;
+
+  const elapsedMs = Math.max(0, now - startedAt);
+
   localStorage.setItem(BINGO_KEY, JSON.stringify({
     won: true,
-    when: nowMs(),
-    line: line
+    when: now,
+    line: line,
+    elapsedMs: elapsedMs
   }));
+}
+
+function bannerText(player, elapsedMs){
+  if(typeof elapsedMs === "number"){
+    return `BINGO achieved — ${player}\nTime to BINGO: ${fmtTime(elapsedMs)}`;
+  }
+  return `BINGO achieved — ${player}`;
 }
 
 function showBingoUI(){
@@ -482,10 +510,18 @@ function showBingoUI(){
   const banner = document.getElementById("banner");
   const player = getPlayerName() || "Player";
 
-  document.getElementById("overlaySub").textContent = `${player} completed a BINGO.`;
+  const rec = getBingoRecord();
+  const elapsed = rec && typeof rec.elapsedMs === "number" ? rec.elapsedMs : null;
+
+  const overlayLines = [
+    `${player} completed a BINGO.`,
+    elapsed !== null ? `Time to BINGO: ${fmtTime(elapsed)}` : ""
+  ].filter(Boolean).join("\n");
+
+  document.getElementById("overlaySub").textContent = overlayLines;
   show(overlay);
 
-  banner.textContent = `BINGO achieved — ${player}`;
+  banner.textContent = bannerText(player, elapsed);
   banner.style.display = "block";
 }
 
@@ -560,17 +596,18 @@ function initApp(){
     grid.appendChild(div);
   });
 
-  // If bingo already achieved earlier, show banner only
+  // If bingo already achieved earlier, show banner (no overlay)
   const banner = document.getElementById("banner");
-  if(hasBingoRecorded()){
+  const rec = getBingoRecord();
+  if(rec){
     const player = getPlayerName() || "Player";
-    banner.textContent = `BINGO achieved — ${player}`;
+    banner.textContent = bannerText(player, rec.elapsedMs);
     banner.style.display = "block";
   } else {
     banner.style.display = "none";
   }
 
-  // Reset button with confirmation
+  // Reset with confirmation
   document.getElementById("resetBtn").onclick = () => {
     const confirmReset = confirm(
       "Reset your board?\n\nThis will remove all marked tiles and names.\nYour card layout will stay the same."
@@ -590,6 +627,7 @@ function initApp(){
       alert("Not yet. This card is still locked. Wait until the timer ends.");
       return;
     }
+
     localStorage.removeItem(BOARD_KEY);
     localStorage.removeItem(STATE_KEY);
     localStorage.removeItem(BINGO_KEY);
