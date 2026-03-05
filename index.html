@@ -1,98 +1,633 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Human Bingo</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Human Bingo</title>
 
-<style>
-body{
-font-family: Arial;
-text-align:center;
-background:#f2f2f2;
-}
+  <style>
+    body{
+      font-family: Arial, sans-serif;
+      text-align:center;
+      background:#f2f2f2;
+      margin:0;
+      padding:0;
+    }
 
-.grid{
-display:grid;
-grid-template-columns:repeat(5,1fr);
-gap:8px;
-max-width:500px;
-margin:20px auto;
-}
+    header{
+      position: sticky;
+      top: 0;
+      background: #f2f2f2;
+      padding: 14px 12px 10px;
+      z-index: 10;
+      border-bottom: 1px solid rgba(0,0,0,0.1);
+    }
 
-.tile{
-border:2px solid black;
-padding:15px;
-background:white;
-cursor:pointer;
-}
+    h1{
+      margin: 6px 0 8px;
+      font-size: 22px;
+    }
 
-.tile.active{
-background:green;
-color:white;
-}
-</style>
+    #timer{
+      margin: 0;
+      font-size: 14px;
+      opacity: 0.85;
+    }
+
+    #playerLine{
+      margin: 6px 0 0;
+      font-size: 14px;
+      opacity: 0.9;
+    }
+
+    #banner{
+      display:none;
+      margin: 10px auto 0;
+      max-width: 740px;
+      padding: 10px 12px;
+      border: 2px solid #000;
+      background: #fff;
+      font-weight: bold;
+    }
+
+    #controls{
+      margin: 10px auto 0;
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    button{
+      border: 2px solid #000;
+      background: #fff;
+      padding: 10px 12px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    button:active{
+      transform: translateY(1px);
+    }
+
+    #hint{
+      margin: 10px 14px 0;
+      font-size: 13px;
+      opacity: 0.85;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+      max-width: 740px;
+      margin: 14px auto 28px;
+      padding: 0 12px;
+      box-sizing: border-box;
+    }
+
+    .tile{
+      border: 2px solid #000;
+      padding: 14px 10px;
+      background: white;
+      cursor: pointer;
+      font-size: 13px;
+      line-height: 1.25;
+      user-select: none;
+      white-space: pre-line;
+      min-height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    .tile.active{
+      background: #1f7a1f;
+      color: white;
+    }
+
+    /* Full-screen overlay */
+    #bingoOverlay{
+      display:none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.78);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      box-sizing: border-box;
+    }
+
+    .overlayCard{
+      width: min(520px, 92vw);
+      background: #fff;
+      border: 3px solid #000;
+      padding: 22px 18px;
+      box-sizing: border-box;
+    }
+
+    .overlayTitle{
+      font-size: 34px;
+      margin: 0 0 8px;
+      letter-spacing: 1px;
+    }
+
+    .overlaySub{
+      margin: 0 0 14px;
+      font-size: 14px;
+      opacity: 0.85;
+    }
+
+    .overlayMini{
+      margin: 0 0 16px;
+      font-size: 13px;
+      opacity: 0.9;
+    }
+
+    .overlayActions{
+      display:flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    /* Name gate */
+    #nameGate{
+      display:none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.78);
+      z-index: 9998;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      box-sizing: border-box;
+    }
+
+    .gateCard{
+      width: min(520px, 92vw);
+      background: #fff;
+      border: 3px solid #000;
+      padding: 22px 18px;
+      box-sizing: border-box;
+      text-align: left;
+    }
+
+    .gateTitle{
+      font-size: 20px;
+      margin: 0 0 10px;
+      text-align: center;
+    }
+
+    .gateText{
+      margin: 0 0 12px;
+      font-size: 14px;
+      opacity: 0.9;
+      text-align: center;
+    }
+
+    .gateRow{
+      display:flex;
+      gap:10px;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    input{
+      border: 2px solid #000;
+      padding: 10px 12px;
+      font-size: 14px;
+      width: min(320px, 80vw);
+      box-sizing: border-box;
+    }
+
+    @media (max-width: 420px){
+      .tile{ font-size: 12px; padding: 12px 8px; }
+      h1{ font-size: 20px; }
+    }
+  </style>
 </head>
 
 <body>
+  <header>
+    <h1>Human Bingo</h1>
+    <p id="timer"></p>
+    <p id="playerLine"></p>
 
-<h1>Human Bingo</h1>
-<p>Tap a box when you find someone who matches it</p>
+    <div id="banner"></div>
 
-<div class="grid" id="grid"></div>
+    <div id="controls">
+      <button id="resetBtn" type="button">Reset marks</button>
+      <button id="newAfterExpiryBtn" type="button">New card (only after expiry)</button>
+    </div>
+
+    <div id="hint">To mark a tile, you must enter the person’s name. Tap the same tile again to clear.</div>
+  </header>
+
+  <div class="grid" id="grid" aria-label="Bingo grid"></div>
+
+  <!-- Name gate (player must enter their own name first) -->
+  <div id="nameGate">
+    <div class="gateCard">
+      <div class="gateTitle">Enter your name to start</div>
+      <p class="gateText">This will appear on your win screen.</p>
+      <div class="gateRow">
+        <input id="playerNameInput" type="text" placeholder="Your name (e.g., Shawn)" maxlength="40" />
+        <button id="startBtn" type="button">Start</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Full-screen bingo overlay -->
+  <div id="bingoOverlay">
+    <div class="overlayCard">
+      <div class="overlayTitle">BINGO!</div>
+      <p class="overlaySub" id="overlaySub"></p>
+      <p class="overlayMini">Show this screen to the organiser.</p>
+      <div class="overlayActions">
+        <button id="overlayCloseBtn" type="button">Continue</button>
+      </div>
+    </div>
+  </div>
 
 <script>
+/* ========================
+   CONFIG
+======================== */
+const LOCK_MS = 60 * 60 * 1000; // 1 hour
 
+// Storage keys (v3 to avoid clashes with your earlier versions)
+const BOARD_KEY  = "humanBingo_board_v3";
+const STATE_KEY  = "humanBingo_state_v3";
+const PLAYER_KEY = "humanBingo_player_v3";
+const BINGO_KEY  = "humanBingo_bingo_v3";
+
+/* ========================
+   BINGO ITEMS (25)
+   Use exactly 25 for a 5x5 board.
+======================== */
 const items = [
-"Has worked in more than one industry",
-"Has led a team",
-"Speaks more than one language",
-"Recently learned a new skill",
-"Has changed careers",
-"Enjoys public speaking",
-"Works remotely",
-"Has attended more than 3 conferences this year",
-"Is hiring",
-"Is looking for new opportunities",
-"Uses AI in their work",
-"Started a side project",
-"Has deployed something to production",
-"Contributes to open source",
-"Has built something using AI",
-"Has worked in a startup",
-"Uses more than 3 programming languages",
-"Has broken production before",
-"Has a GitHub project",
-"Has spoken at a tech meetup",
-"Works with cloud platforms",
-"Uses Linux daily",
-"Has built a mobile app",
-"Has worked overseas",
-"Drinks more than 3 cups of coffee a day"
+  "Has worked in more than one industry",
+  "Has led a team",
+  "Speaks more than one language",
+  "Recently learned a new skill",
+  "Has changed careers",
+  "Enjoys public speaking",
+  "Works remotely",
+  "Has attended more than 3 conferences this year",
+  "Is hiring",
+  "Is looking for new opportunities",
+  "Uses AI in their work",
+  "Started a side project",
+  "Has deployed something to production",
+  "Contributes to open source",
+  "Has built something using AI",
+  "Has worked in a startup",
+  "Uses more than 3 programming languages",
+  "Has broken production before",
+  "Has a GitHub project",
+  "Has spoken at a tech meetup",
+  "Works with cloud platforms",
+  "Uses Linux daily",
+  "Has built a mobile app",
+  "Has worked overseas",
+  "Drinks more than 3 cups of coffee a day"
 ];
 
-function shuffle(a){
-for(let i=a.length-1;i>0;i--){
-const j=Math.floor(Math.random()*(i+1));
-[a[i],a[j]]=[a[j],a[i]];
+/* ========================
+   HELPERS
+======================== */
+function shuffle(array){
+  for(let i=array.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [array[i],array[j]]=[array[j],array[i]];
+  }
 }
+
+function safeJsonParse(raw){
+  try { return JSON.parse(raw); } catch(e) { return null; }
 }
 
-shuffle(items);
+function nowMs(){ return Date.now(); }
 
-const grid=document.getElementById("grid");
+function fmtTime(ms){
+  const m = Math.floor(ms / 60000);
+  const s = Math.floor((ms % 60000) / 1000);
+  return `${m}m ${String(s).padStart(2,"0")}s`;
+}
 
-items.forEach(text=>{
-const div=document.createElement("div");
-div.className="tile";
-div.innerText=text;
+function show(el){ el.style.display = "flex"; }
+function hide(el){ el.style.display = "none"; }
 
-div.onclick=()=>{
-div.classList.toggle("active");
-};
+/* ========================
+   BOARD + LOCK
+======================== */
+function getOrCreateBoard(){
+  const now = nowMs();
+  const stored = safeJsonParse(localStorage.getItem(BOARD_KEY));
 
-grid.appendChild(div);
-});
+  if(stored && Array.isArray(stored.board) && stored.board.length === 25 && typeof stored.expires === "number"){
+    if(now < stored.expires){
+      startTimer(stored.expires);
+      return stored;
+    }
+  }
 
+  // Create a new locked board
+  const fresh = [...items];
+  shuffle(fresh);
+  const board = fresh.slice(0,25);
+  const expires = now + LOCK_MS;
+
+  const payload = { board, expires };
+  localStorage.setItem(BOARD_KEY, JSON.stringify(payload));
+
+  // Reset state + bingo when board changes
+  localStorage.removeItem(STATE_KEY);
+  localStorage.removeItem(BINGO_KEY);
+
+  startTimer(expires);
+  return payload;
+}
+
+function startTimer(expires){
+  function update(){
+    const remaining = expires - nowMs();
+    const timerEl = document.getElementById("timer");
+
+    if(remaining <= 0){
+      timerEl.textContent = "Card expired. Tap “New card” (or refresh) to start a new round.";
+      return;
+    }
+    timerEl.textContent = `Card locked for: ${fmtTime(remaining)}`;
+  }
+
+  update();
+  setInterval(update, 1000);
+}
+
+/* ========================
+   PLAYER NAME GATE
+======================== */
+function getPlayerName(){
+  const data = safeJsonParse(localStorage.getItem(PLAYER_KEY));
+  if(data && typeof data.name === "string" && data.name.trim().length >= 2) return data.name.trim();
+  return "";
+}
+
+function setPlayerName(name){
+  localStorage.setItem(PLAYER_KEY, JSON.stringify({ name: name.trim() }));
+  updatePlayerLine();
+}
+
+function updatePlayerLine(){
+  const name = getPlayerName();
+  const el = document.getElementById("playerLine");
+  el.textContent = name ? `Playing as: ${name}` : "";
+}
+
+function enforceNameGate(){
+  const gate = document.getElementById("nameGate");
+  const current = getPlayerName();
+
+  if(!current){
+    show(gate);
+    document.getElementById("playerNameInput").focus();
+  } else {
+    hide(gate);
+  }
+}
+
+/* ========================
+   TILE STATE (marks + names)
+======================== */
+function defaultState(){
+  return Array.from({length:25}, () => ({ marked:false, name:"" }));
+}
+
+function loadState(){
+  const raw = localStorage.getItem(STATE_KEY);
+  const parsed = safeJsonParse(raw);
+  if(Array.isArray(parsed) && parsed.length === 25){
+    return parsed.map(x => ({
+      marked: !!x.marked,
+      name: (typeof x.name === "string") ? x.name : ""
+    }));
+  }
+  return defaultState();
+}
+
+function saveState(state){
+  localStorage.setItem(STATE_KEY, JSON.stringify(state));
+}
+
+function renderTile(div, label, tileState){
+  if(tileState.marked && tileState.name.trim()){
+    div.textContent = `${label}\n— ${tileState.name.trim()}`;
+    div.classList.add("active");
+  } else {
+    div.textContent = label;
+    div.classList.remove("active");
+  }
+}
+
+/* ========================
+   BINGO DETECTION
+   Only counts tiles that have a non-empty name.
+======================== */
+function isMarkedValid(tileState){
+  return tileState.marked && typeof tileState.name === "string" && tileState.name.trim().length >= 2;
+}
+
+function getWinningLines(){
+  // indices for a 5x5 grid
+  const lines = [];
+
+  // rows
+  for(let r=0; r<5; r++){
+    lines.push([0,1,2,3,4].map(c => r*5 + c));
+  }
+  // cols
+  for(let c=0; c<5; c++){
+    lines.push([0,1,2,3,4].map(r => r*5 + c));
+  }
+  // diagonals
+  lines.push([0,6,12,18,24]);
+  lines.push([4,8,12,16,20]);
+
+  return lines;
+}
+
+function checkBingo(state){
+  const lines = getWinningLines();
+  for(const line of lines){
+    if(line.every(i => isMarkedValid(state[i]))){
+      return line; // return winning line indices
+    }
+  }
+  return null;
+}
+
+/* ========================
+   BINGO OVERLAY + BANNER
+======================== */
+function hasBingoRecorded(){
+  const data = safeJsonParse(localStorage.getItem(BINGO_KEY));
+  return !!(data && data.won === true);
+}
+
+function recordBingo(line){
+  localStorage.setItem(BINGO_KEY, JSON.stringify({
+    won: true,
+    when: nowMs(),
+    line: line
+  }));
+}
+
+function showBingoUI(){
+  const overlay = document.getElementById("bingoOverlay");
+  const banner = document.getElementById("banner");
+  const player = getPlayerName() || "Player";
+
+  // Full screen overlay
+  document.getElementById("overlaySub").textContent = `${player} completed a BINGO.`;
+  show(overlay);
+
+  // After a moment, also set banner (stays at top)
+  banner.textContent = `BINGO achieved — ${player}`;
+  banner.style.display = "block";
+}
+
+/* ========================
+   RENDER APP
+======================== */
+function initApp(){
+  updatePlayerLine();
+  enforceNameGate();
+
+  // Build board + render grid
+  const { board, expires } = getOrCreateBoard();
+  const state = loadState();
+
+  const grid = document.getElementById("grid");
+  grid.innerHTML = "";
+
+  board.forEach((label, idx) => {
+    const div = document.createElement("div");
+    div.className = "tile";
+    renderTile(div, label, state[idx]);
+
+    div.onclick = () => {
+      // Must have player name first
+      const player = getPlayerName();
+      if(!player){
+        enforceNameGate();
+        return;
+      }
+
+      // If already marked -> clear
+      if(state[idx].marked){
+        state[idx] = { marked:false, name:"" };
+        saveState(state);
+        renderTile(div, label, state[idx]);
+        return;
+      }
+
+      // Require name entry to mark
+      const entered = prompt("Enter the person's name to mark this tile:");
+      if(!entered) return;
+      const cleaned = entered.trim();
+      if(cleaned.length < 2) return;
+
+      state[idx] = { marked:true, name: cleaned };
+      saveState(state);
+      renderTile(div, label, state[idx]);
+
+      // Check bingo
+      if(!hasBingoRecorded()){
+        const winLine = checkBingo(state);
+        if(winLine){
+          recordBingo(winLine);
+          showBingoUI();
+        }
+      }
+    };
+
+    grid.appendChild(div);
+  });
+
+  // If bingo already achieved earlier, show banner only (no overlay)
+  const banner = document.getElementById("banner");
+  if(hasBingoRecorded()){
+    const player = getPlayerName() || "Player";
+    banner.textContent = `BINGO achieved — ${player}`;
+    banner.style.display = "block";
+  } else {
+    banner.style.display = "none";
+  }
+
+  // Buttons
+  document.getElementById("resetBtn").onclick = () => {
+    // Keep board locked, just clear marks/names + bingo state
+    localStorage.removeItem(STATE_KEY);
+    localStorage.removeItem(BINGO_KEY);
+    initApp();
+  };
+
+  document.getElementById("newAfterExpiryBtn").onclick = () => {
+    // Only allow a new board after expiry
+    const stored = safeJsonParse(localStorage.getItem(BOARD_KEY));
+    const now = nowMs();
+    if(stored && typeof stored.expires === "number" && now < stored.expires){
+      alert("Not yet. This card is still locked. Wait until the timer ends.");
+      return;
+    }
+
+    // Remove board so it regenerates
+    localStorage.removeItem(BOARD_KEY);
+    localStorage.removeItem(STATE_KEY);
+    localStorage.removeItem(BINGO_KEY);
+    initApp();
+  };
+
+  // Overlay close
+  document.getElementById("overlayCloseBtn").onclick = () => {
+    hide(document.getElementById("bingoOverlay"));
+    // banner remains visible at the top
+  };
+
+  // Also allow clicking outside the overlay card to close
+  document.getElementById("bingoOverlay").onclick = (e) => {
+    if(e.target.id === "bingoOverlay"){
+      hide(document.getElementById("bingoOverlay"));
+    }
+  };
+
+  // Start button for name gate
+  document.getElementById("startBtn").onclick = () => {
+    const input = document.getElementById("playerNameInput");
+    const name = (input.value || "").trim();
+    if(name.length < 2){
+      alert("Please enter a valid name.");
+      return;
+    }
+    setPlayerName(name);
+    hide(document.getElementById("nameGate"));
+  };
+
+  // Enter key on name input
+  document.getElementById("playerNameInput").addEventListener("keydown", (e) => {
+    if(e.key === "Enter"){
+      document.getElementById("startBtn").click();
+    }
+  });
+}
+
+// Run
+initApp();
 </script>
 
 </body>
